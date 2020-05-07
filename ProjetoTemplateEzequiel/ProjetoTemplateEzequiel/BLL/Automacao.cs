@@ -35,19 +35,23 @@ namespace ScieloEzequiel.BLL
             dDataPesq = DateTime.Now.ToString("dd/mm/yyy hh:mm:ss");
         }
         public void PreparaCapturaTag()
-        {            
+        {
             IWebDriver driver = null;
 
             try
             {
-                driver = new ChromeDriver(); 
+                driver = new ChromeDriver();
+
+                ReiinciaTagsCapturados();
 
                 IniciaURLdoTemplate(driver);
 
                 CapturaTagImput(driver);
 
-                CapturaTagA(driver);               
-               
+                CapturaTagA(driver);
+
+                PercorreTagsImput(driver);
+
             }
             catch (Exception ex)
             {
@@ -57,6 +61,73 @@ namespace ScieloEzequiel.BLL
             {
                 driver.Close(); // fecha pagina do ChromeDriver
                 driver.Quit();  // fecha prompt do ChromeDriver
+            }
+        }
+
+        private void PercorreTagsImput(IWebDriver driver)
+        {
+            string query = "";
+            DataSet DS = new DataSet();
+            DataSet DS1 = new DataSet();
+
+            try
+            {
+                query = "select * from TagsCapturados where TipoDeTag = input and DataEhora is null";
+
+                DS = DB.DS(query, "TagsCapturados");
+
+                query = "select * from TemplatesExecução where DataEhora is null";
+
+                DS1 = DB.DS(query, "TemplatesExecução");
+
+                if (DS1.Tables["TemplatesExecução"].Rows.Count > 0)
+                {
+                    foreach (DataRow Row1 in DS1.Tables["TemplatesExecução"].Rows)
+                    {
+                        if (DS.Tables["TagsCapturados"].Rows.Count > 0)
+                        {
+                            foreach (DataRow Row in DS.Tables["TagsCapturados"].Rows)
+                            {
+                                if (Row["NomeTag"].ToString() == "new search")
+                                {
+                                    driver.FindElement(By.XPath("//input[@name='"+ Row["NomeTag"] +"']")).SendKeys(Row1["NomeTag"].ToString());
+                                }
+                                else
+                                {
+                                    query = " update TagsCapturados set DataEhora =" +
+                                            " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
+                                            " where CodCapturados = '" + Row1["CodCapturados"] + "' ";
+                                }
+
+                            }
+                        }
+
+                        query = " update TemplatesExecução set DataEhora " +
+                                " = '"+ DateTime.Now.ToString("dd / mm / yyy hh: mm:ss") +"' " +
+                                " where CodTemplate = '" + Row1["CodTemplate"] +"' ";
+
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: PercorreTagsImput");
+            }
+        }
+
+        private void ReiinciaTagsCapturados()
+        {
+            string query = "";
+
+            try
+            {
+                query = " Delete from TagsCapturados";
+
+                DB.ExecutaQry(query);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: ReiinciaTagsCapturados");
             }
         }
 
@@ -85,7 +156,7 @@ namespace ScieloEzequiel.BLL
                     LocalTag = element1.Location.ToString();
 
                     query = " insert into TagsCapturados (TipoDeTag, LinkDaTag, LocalizacaoTag)" +
-                            " values ('a','" + Href.Replace("'", "₱") + "','" + LocalTag + "')";
+                            " values ('ref','" + Href.Replace("'", "₱") + "','" + LocalTag + "')";
 
                     DB.ExecutaQry(query);
                 }
