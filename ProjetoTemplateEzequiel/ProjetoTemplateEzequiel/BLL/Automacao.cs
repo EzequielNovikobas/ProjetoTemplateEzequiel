@@ -69,10 +69,17 @@ namespace ScieloEzequiel.BLL
             string query = "";
             DataSet DS = new DataSet();
             DataSet DS1 = new DataSet();
+            IWebElement element1 = null;
+            int QtdPesquisas;
+            
+
+
 
             try
             {
-                query = "select * from TagsCapturados where TipoDeTag = input and DataEhora is null";
+                
+
+                query = "select * from TagsCapturados where TipoDeTag = 'input' and DataEhora is null order by CodCapturados";
 
                 DS = DB.DS(query, "TagsCapturados");
 
@@ -80,31 +87,55 @@ namespace ScieloEzequiel.BLL
 
                 DS1 = DB.DS(query, "TemplatesExecução");
 
+
+
                 if (DS1.Tables["TemplatesExecução"].Rows.Count > 0)
                 {
-                    foreach (DataRow Row1 in DS1.Tables["TemplatesExecução"].Rows)
+
+
+                    foreach (DataRow RowTemplatesExecução in DS1.Tables["TemplatesExecução"].Rows)
                     {
                         if (DS.Tables["TagsCapturados"].Rows.Count > 0)
                         {
-                            foreach (DataRow Row in DS.Tables["TagsCapturados"].Rows)
+                            foreach (DataRow RowTagsCapturados in DS.Tables["TagsCapturados"].Rows)
                             {
-                                if (Row["NomeTag"].ToString() == "new search")
+                                if (RowTagsCapturados["NomeTag"].ToString() == RowTemplatesExecução["NomeTag"].ToString())
                                 {
-                                    driver.FindElement(By.XPath("//input[@name='"+ Row["NomeTag"] +"']")).SendKeys(Row1["NomeTag"].ToString());
+                                    var ElementosA = driver.FindElements(By.XPath(("//input[@name='" + RowTagsCapturados["NomeTag"] + "']")));
+
+                                    QtdPesquisas = 0;
+                                    QtdPesquisas = ElementosA.Count();
+
+                                    for (int r = 0; r < QtdPesquisas - 1; r++)
+                                    {
+                                        element1 = ElementosA[r];
+                                    }
+
+                                    query = " update TemplatesExecução set DataEhora =" +
+                                            " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
+                                            " where CodTemplate = '" + RowTemplatesExecução["CodTemplate"] + "' ";
+
+                                    DB.ExecutaQry(query);
+
+                                    query = " update TagsCapturados set DataEhora =" +
+                                            " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
+                                            " where CodCapturados = '" + RowTagsCapturados["CodCapturados"] + "' ";
+
+                                    DB.ExecutaQry(query);
                                 }
                                 else
                                 {
                                     query = " update TagsCapturados set DataEhora =" +
                                             " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
-                                            " where CodCapturados = '" + Row1["CodCapturados"] + "' ";
+                                            " where CodCapturados = '" + RowTagsCapturados["CodCapturados"] + "' ";
                                 }
 
                             }
                         }
 
-                        query = " update TemplatesExecução set DataEhora " +
-                                " = '"+ DateTime.Now.ToString("dd / mm / yyy hh: mm:ss") +"' " +
-                                " where CodTemplate = '" + Row1["CodTemplate"] +"' ";
+                        query = " update TemplatesExecução set DataEhora =" +
+                                           " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
+                                           " where CodTemplate = '" + RowTemplatesExecução["CodTemplate"] + "' ";
 
                     }
                 }
