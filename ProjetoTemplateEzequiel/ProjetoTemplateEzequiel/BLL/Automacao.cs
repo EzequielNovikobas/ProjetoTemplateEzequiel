@@ -52,6 +52,10 @@ namespace ScieloEzequiel.BLL
 
                 PercorreTagsImput(driver);
 
+                CapturaTagImput(driver);
+
+                CapturaTagA(driver);
+
             }
             catch (Exception ex)
             {
@@ -71,7 +75,7 @@ namespace ScieloEzequiel.BLL
             DataSet DS1 = new DataSet();
             IWebElement element1 = null;
             int QtdPesquisas;
-            
+            int r=0;
 
 
 
@@ -91,8 +95,6 @@ namespace ScieloEzequiel.BLL
 
                 if (DS1.Tables["TemplatesExecução"].Rows.Count > 0)
                 {
-
-
                     foreach (DataRow RowTemplatesExecução in DS1.Tables["TemplatesExecução"].Rows)
                     {
                         if (DS.Tables["TagsCapturados"].Rows.Count > 0)
@@ -106,43 +108,63 @@ namespace ScieloEzequiel.BLL
                                     QtdPesquisas = 0;
                                     QtdPesquisas = ElementosA.Count();
 
-                                    for (int r = 0; r < QtdPesquisas - 1; r++)
-                                    {
+                                    
                                         element1 = ElementosA[r];
+
+                                        element1.SendKeys(RowTemplatesExecução["DadoDoInpt"].ToString());
+
+                                    r++;
+
+                                    AtualizaTagsCapturados(RowTagsCapturados["CodCapturados"].ToString());
+
+                                    if (r == DS1.Tables["TemplatesExecução"].Rows.Count)
+                                    {
+                                        AtualizaTagsCapturados(RowTagsCapturados["CodCapturados"].ToString());
+
+                                        return; 
+
                                     }
-
-                                    query = " update TemplatesExecução set DataEhora =" +
-                                            " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
-                                            " where CodTemplate = '" + RowTemplatesExecução["CodTemplate"] + "' ";
-
-                                    DB.ExecutaQry(query);
-
-                                    query = " update TagsCapturados set DataEhora =" +
-                                            " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
-                                            " where CodCapturados = '" + RowTagsCapturados["CodCapturados"] + "' ";
-
-                                    DB.ExecutaQry(query);
                                 }
                                 else
                                 {
-                                    query = " update TagsCapturados set DataEhora =" +
-                                            " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
-                                            " where CodCapturados = '" + RowTagsCapturados["CodCapturados"] + "' ";
+
+                                    AtualizaTagsCapturados(RowTagsCapturados["CodCapturados"].ToString());
                                 }
 
                             }
                         }
-
-                        query = " update TemplatesExecução set DataEhora =" +
-                                           " '" + DateTime.Now.ToString("dd/mm/yyy hh:mm:ss") + "' " +
-                                           " where CodTemplate = '" + RowTemplatesExecução["CodTemplate"] + "' ";
-
                     }
                 }
             }
             catch (Exception ex)
             {
                 throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: PercorreTagsImput");
+            }
+        }
+
+        private void AtualizaTagsCapturados(string CodCapturados)
+        {
+            string query = "";
+
+            try
+            {
+                if (CodCapturados == "")
+                {
+                    query = " update TagsCapturados set DataEhora =" +
+                        " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' " ;
+                }
+                else
+                {
+                    query = " update TagsCapturados set DataEhora =" +
+                        " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' " +
+                        " where CodCapturados = " + CodCapturados + " ";
+                }                
+
+                DB.ExecutaQry(query);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: AtualizaTagsCapturados");
             }
         }
 
