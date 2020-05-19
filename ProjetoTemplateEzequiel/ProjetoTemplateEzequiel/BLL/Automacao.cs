@@ -42,7 +42,7 @@ namespace ScieloEzequiel.BLL
             {
                 driver = new ChromeDriver();
 
-                ReiinciaTagsCapturados();
+                ReinciaTagsCapturados();
 
                 IniciaURLdoTemplate(driver);
 
@@ -52,9 +52,7 @@ namespace ScieloEzequiel.BLL
 
                 PercorreTagsImput(driver);
 
-                CapturaTagImput(driver);
-
-                CapturaTagA(driver);
+                
 
             }
             catch (Exception ex)
@@ -75,13 +73,13 @@ namespace ScieloEzequiel.BLL
             DataSet DS1 = new DataSet();
             IWebElement element1 = null;
             int QtdPesquisas;
-            int r=0;
+            int r = 0;
 
 
 
             try
             {
-                
+
 
                 query = "select * from TagsCapturados where TipoDeTag = 'input' and DataEhora is null order by CodCapturados";
 
@@ -108,10 +106,10 @@ namespace ScieloEzequiel.BLL
                                     QtdPesquisas = 0;
                                     QtdPesquisas = ElementosA.Count();
 
-                                    
-                                        element1 = ElementosA[r];
 
-                                        element1.SendKeys(RowTemplatesExecução["DadoDoInpt"].ToString());
+                                    element1 = ElementosA[r];
+
+                                    element1.SendKeys(RowTemplatesExecução["DadoDoInpt"].ToString());
 
                                     r++;
 
@@ -119,11 +117,25 @@ namespace ScieloEzequiel.BLL
 
                                     if (r == DS1.Tables["TemplatesExecução"].Rows.Count)
                                     {
+
+                                        driver.FindElement(By.XPath("//input[@src='/iah/I/image/pesq.gif']")).Click();
+                                        EsperaElemento("References", driver);
+
+                                        CapturaTagImput(driver);
+
+                                        CapturaTagA(driver);
+
+                                        AtualizaTemplatesExecução(RowTemplatesExecução["CodTemplate"].ToString());
+
                                         AtualizaTagsCapturados(RowTagsCapturados["CodCapturados"].ToString());
 
-                                        return; 
+                                        MessageBox.Show("Processo concluído");
+
+                                        return;
 
                                     }
+
+                                    break;
                                 }
                                 else
                                 {
@@ -135,10 +147,33 @@ namespace ScieloEzequiel.BLL
                         }
                     }
                 }
+                else
+                {
+                    MessageBox.Show("Não existe template(s) cadastrado(s) para iniciar a pesquisa.");
+                }
             }
             catch (Exception ex)
             {
                 throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: PercorreTagsImput");
+            }
+        }
+
+        private void AtualizaTemplatesExecução(string CodTemplate)
+        {
+
+            string query = "";
+
+            try
+            {
+                query = " update TemplatesExecução set DataEhora =" +
+                        " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' " ;
+
+
+                DB.ExecutaQry(query);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: AtualizaTemplatesExecução");
             }
         }
 
@@ -151,14 +186,14 @@ namespace ScieloEzequiel.BLL
                 if (CodCapturados == "")
                 {
                     query = " update TagsCapturados set DataEhora =" +
-                        " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' " ;
+                        " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' ";
                 }
                 else
                 {
                     query = " update TagsCapturados set DataEhora =" +
                         " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' " +
                         " where CodCapturados = " + CodCapturados + " ";
-                }                
+                }
 
                 DB.ExecutaQry(query);
             }
@@ -168,7 +203,8 @@ namespace ScieloEzequiel.BLL
             }
         }
 
-        private void ReiinciaTagsCapturados()
+    
+        private void ReinciaTagsCapturados()
         {
             string query = "";
 
@@ -208,10 +244,15 @@ namespace ScieloEzequiel.BLL
 
                     LocalTag = element1.Location.ToString();
 
-                    query = " insert into TagsCapturados (TipoDeTag, LinkDaTag, LocalizacaoTag)" +
-                            " values ('ref','" + Href.Replace("'", "₱") + "','" + LocalTag + "')";
+                    if (Href != null)
+                    {
+                        query = " insert into TagsCapturados (TipoDeTag, LinkDaTag, LocalizacaoTag)" +
+                                " values ('ref','" + Href.Replace("'", "₱") + "','" + LocalTag + "')";
 
-                    DB.ExecutaQry(query);
+                        DB.ExecutaQry(query);
+                    }
+
+
                 }
             }
             catch (Exception ex)
@@ -300,7 +341,39 @@ namespace ScieloEzequiel.BLL
                 throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: ConsultaUrl");
             }
         }
+        public string EsperaElemento(string Elemento, IWebDriver driver)
+        {
+            int qtd = 0;
+            int TimeOut = 0;
+            string Bib = "";
 
+            try
+            {
+
+                while (qtd == 0)
+                {
+                    Thread.Sleep(500);
+
+                    if (driver.PageSource.Contains(Elemento) == true)
+                    {
+                        return "ok";
+                    }
+                    else if (TimeOut == 120)
+                    {
+                        throw new Exception("Tempo de espera excedido, tela inesperada ou problemas com o navegador.");
+                    }
+
+                    TimeOut++;
+                }
+
+                return "ok";
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: EsperaElemento");
+            }
+        }
 
     }
 }
