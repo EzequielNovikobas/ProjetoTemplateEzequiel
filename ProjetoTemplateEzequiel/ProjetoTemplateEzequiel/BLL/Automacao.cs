@@ -81,7 +81,7 @@ namespace ScieloEzequiel.BLL
             {
 
 
-                query = "select * from TagsCapturados where TipoDeTag = 'input' and DataEhora is null order by CodCapturados";
+                query = "select * from TagsCapturados where TipoDeTag = 'input' and DataEhora is null order by SequenciaCapturada";
 
                 DS = DB.DS(query, "TagsCapturados");
 
@@ -113,7 +113,7 @@ namespace ScieloEzequiel.BLL
 
                                     r++;
 
-                                    AtualizaTagsCapturados(RowTagsCapturados["CodCapturados"].ToString());
+                                    AtualizaTagsCapturados(RowTagsCapturados["SequenciaCapturada"].ToString());
 
                                     if (r == DS1.Tables["TemplatesExecução"].Rows.Count)
                                     {
@@ -121,13 +121,17 @@ namespace ScieloEzequiel.BLL
                                         driver.FindElement(By.XPath("//input[@src='/iah/I/image/pesq.gif']")).Click();
                                         EsperaElemento("References", driver);
 
+                                        ReinciaTagsCapturados();
+
                                         CapturaTagImput(driver);
 
                                         CapturaTagA(driver);
 
-                                        AtualizaTemplatesExecução(RowTemplatesExecução["CodTemplate"].ToString());
+                                        InsereURLdoTemplate();
 
-                                        AtualizaTagsCapturados(RowTagsCapturados["CodCapturados"].ToString());
+                                        AtualizaTemplatesExecução(RowTemplatesExecução["CódigoDoAplicativo"].ToString());
+
+                                        AtualizaTagsCapturados(RowTagsCapturados["SequenciaCapturada"].ToString());
 
                                         MessageBox.Show("Processo concluído");
 
@@ -140,7 +144,7 @@ namespace ScieloEzequiel.BLL
                                 else
                                 {
 
-                                    AtualizaTagsCapturados(RowTagsCapturados["CodCapturados"].ToString());
+                                    AtualizaTagsCapturados(RowTagsCapturados["SequenciaCapturada"].ToString());
                                 }
 
                             }
@@ -155,6 +159,24 @@ namespace ScieloEzequiel.BLL
             catch (Exception ex)
             {
                 throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: PercorreTagsImput");
+            }
+        }
+
+        private void InsereURLdoTemplate()
+        {
+            string query = "";
+
+            try
+            {
+                query = " insert into URLdoTemplate (NumeroDaURL, URLdoLinks) select NumeroDaURL, AtrilbutosDoTag " +
+                        " from TagsCapturados where TipoDeTag = 'ref' and AtrilbutosDoTag is not null";
+
+
+                DB.ExecutaQry(query);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: InsereURLdoTemplate");
             }
         }
 
@@ -192,7 +214,7 @@ namespace ScieloEzequiel.BLL
                 {
                     query = " update TagsCapturados set DataEhora =" +
                         " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' " +
-                        " where CodCapturados = " + CodCapturados + " ";
+                        " where SequenciaCapturada = " + CodCapturados + " ";
                 }
 
                 DB.ExecutaQry(query);
@@ -228,6 +250,7 @@ namespace ScieloEzequiel.BLL
             string Href = "";
             string query = "";
             IWebElement element1 = null;
+            int NumeroDaURL = 1;
 
             try
             {
@@ -246,10 +269,17 @@ namespace ScieloEzequiel.BLL
 
                     if (Href != null)
                     {
-                        query = " insert into TagsCapturados (TipoDeTag, LinkDaTag, LocalizacaoTag)" +
-                                " values ('ref','" + Href.Replace("'", "₱") + "','" + LocalTag + "')";
+                        string[] AUXLocalizacao = LocalTag.Split(',');
+
+                        string LocalizacaoTagx = AUXLocalizacao[0].Replace("{X=", "");
+                        string LocalizacaoTagy = AUXLocalizacao[1].Replace("Y=", "");
+
+                        query = " insert into TagsCapturados (TipoDeTag, AtrilbutosDoTag, LocalizaçãoTagX, LocalizaçãoTagY, NumeroDaURL)" +
+                                " values ('ref','" + Href.Replace("'", "₱") + "'," + LocalizacaoTagx + "," + LocalizacaoTagy.Replace("}", "") + "," + NumeroDaURL + ")";
 
                         DB.ExecutaQry(query);
+
+                        NumeroDaURL++;
                     }
 
 
@@ -269,6 +299,9 @@ namespace ScieloEzequiel.BLL
             string Href = "";
             string query = "";
             IWebElement element1 = null;
+            int NumeroDaURL = 1;
+
+
 
             try
             {
@@ -285,10 +318,17 @@ namespace ScieloEzequiel.BLL
 
                     LocalTag = element1.Location.ToString();
 
-                    query = " insert into TagsCapturados (TipoDeTag, NomeTag, LocalizacaoTag)" +
-                            " values ('input','" + NomeTag.Replace("'", "₱") + "','" + LocalTag + "')";
+                    string[] AUXLocalizacao = LocalTag.Split(',');
+
+                    string LocalizacaoTagx = AUXLocalizacao[0].Replace("{X=", "");
+                    string LocalizacaoTagy = AUXLocalizacao[1].Replace("Y=", "");
+
+                    query = " insert into TagsCapturados (TipoDeTag, NomeTag, LocalizaçãoTagX, LocalizaçãoTagY, NumeroDaURL)" +
+                            " values ('input','" + NomeTag.Replace("'", "₱") + "'," + LocalizacaoTagx + "," + LocalizacaoTagy.Replace("}", "") + "," + NumeroDaURL + ")";
 
                     DB.ExecutaQry(query);
+
+                    NumeroDaURL++;
 
                 }
             }
@@ -318,7 +358,7 @@ namespace ScieloEzequiel.BLL
 
             try
             {
-                Qry = "select top 1 URLdoAplicativo  from URLdoTemplate";
+                Qry = "select top 1 URLdoLinks  from URLdoTemplate";
 
                 using (DR = DB.DR(Qry))
                 {
@@ -326,7 +366,7 @@ namespace ScieloEzequiel.BLL
                     {
                         DR.Read();
 
-                        return DR["URLdoAplicativo"].ToString();
+                        return DR["URLdoLinks"].ToString().Replace("#", "");
                     }
                     else
                     {
