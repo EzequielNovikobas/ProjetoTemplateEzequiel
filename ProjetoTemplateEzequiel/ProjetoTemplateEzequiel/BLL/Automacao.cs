@@ -23,6 +23,7 @@ namespace ScieloEzequiel.BLL
         private string sPesquisa;
         private string dDataPesq;
         private string Controle;
+        private Boolean FimProcess = true;
         public bool ParaThread;
         private AccessDB DB = new AccessDB();
 
@@ -44,16 +45,41 @@ namespace ScieloEzequiel.BLL
 
                 ReinciaTagsCapturados();
 
-                IniciaURLdoTemplate(driver);
+                int NumeroDeCptura = 0;
 
-                CapturaTagImput(driver);
+                while (FimProcess == true)
+                {
+                    string query = "select top 1 * from URLdoTemplate where DataEhora is null order by NumeroDaURL";
 
-                CapturaTagA(driver);
+                    DataSet DS = DB.DS(query, "URLdoTemplate");
 
-                PercorreTagsImput(driver);
+                    NumeroDeCptura++;
 
-                
+                    //IniciaURLdoTemplate(driver);
 
+                    if (DS.Tables["URLdoTemplate"].Rows.Count > 0)
+                    {
+                        foreach (DataRow row in DS.Tables["URLdoTemplate"].Rows)
+                        {
+
+                            driver.Navigate().GoToUrl(row["URLdoLinks"].ToString().Replace("#", "")); //Navega na url especificada
+                            Thread.Sleep(2500);
+
+                            CapturaTagImput(driver);
+
+                            CapturaTagA(driver, NumeroDeCptura, row["NumeroDaURL"].ToString());
+
+                            PercorreTagsImput(driver, row["NumeroDaURL"].ToString());
+
+                            AtualizaURLTemplatesExecução(row["NumeroDaURL"].ToString());
+
+                        }
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -66,7 +92,7 @@ namespace ScieloEzequiel.BLL
             }
         }
 
-        private void PercorreTagsImput(IWebDriver driver)
+        private void PercorreTagsImput(IWebDriver driver, string NumeroDaURL)
         {
             string query = "";
             DataSet DS = new DataSet();
@@ -81,7 +107,9 @@ namespace ScieloEzequiel.BLL
             {
 
 
-                query = "select * from TagsCapturados where TipoDeTag = 'input' and DataEhora is null order by SequenciaCapturada";
+                query = " select * from TagsCapturados where TipoDeTag in (select Tags from TagsAtributos " +
+                        " where DataValidade > #" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "#) and " +
+                        " DataEhora is null and NumeroDaURL_tela = " + NumeroDaURL + " order by SequenciaCapturada";
 
                 DS = DB.DS(query, "TagsCapturados");
 
@@ -125,9 +153,7 @@ namespace ScieloEzequiel.BLL
 
                                         CapturaTagImput(driver);
 
-                                        CapturaTagA(driver);
-
-                                        InsereURLdoTemplate();
+                                        //CapturaTagA(driver);
 
                                         AtualizaTemplatesExecução(RowTemplatesExecução["CódigoDoAplicativo"].ToString());
 
@@ -143,8 +169,8 @@ namespace ScieloEzequiel.BLL
                                 }
                                 else
                                 {
-
-                                    AtualizaTagsCapturados(RowTagsCapturados["SequenciaCapturada"].ToString());
+                                    return;
+                                    //AtualizaTagsCapturados(RowTagsCapturados["SequenciaCapturada"].ToString());
                                 }
 
                             }
@@ -153,7 +179,8 @@ namespace ScieloEzequiel.BLL
                 }
                 else
                 {
-                    MessageBox.Show("Não existe template(s) cadastrado(s) para iniciar a pesquisa.");
+                    //MessageBox.Show("Não existe template(s) cadastrado(s) para iniciar a pesquisa.");
+                    return;
                 }
             }
             catch (Exception ex)
@@ -162,17 +189,66 @@ namespace ScieloEzequiel.BLL
             }
         }
 
-        private void InsereURLdoTemplate()
+        private string InsereURLdoTemplate(string Href)
         {
             string query = "";
 
+            OleDbDataReader DR;
+
             try
             {
-                query = " insert into URLdoTemplate (NumeroDaURL, URLdoLinks) select NumeroDaURL, AtrilbutosDoTag " +
-                        " from TagsCapturados where TipoDeTag = 'ref' and AtrilbutosDoTag is not null";
-
+                query = " select top 1 NumeroDaCaptura, NumeroMaximoDaCaptura from TagsCapturados " +
+                        " order by NumeroDaCaptura desc";
 
                 DB.ExecutaQry(query);
+
+                using (DR = DB.DR(query))
+                {
+                    DR.Read();
+
+                    int NumeroDaCaptura = Int32.Parse(DR["NumeroDaCaptura"].ToString());
+                    int NumeroMaximoDaCaptura = Int32.Parse(DR["NumeroMaximoDaCaptura"].ToString());
+
+                    if (NumeroDaCaptura >= NumeroMaximoDaCaptura)
+                    {
+                        return "1";
+                    }
+                }
+
+                query = "select * from URLdoTemplate where URLdoLinks = '" + Href + "'";
+
+                DB.ExecutaQry(query);
+
+                using (DR = DB.DR(query))
+                {
+                    if (DR.HasRows == false)
+                    {
+                        query = " insert into URLdoTemplate (URLdoLinks) values ('" + Href + "')";
+
+                        DB.ExecutaQry(query);
+
+                        //query = "select top 1 NumeroDaURL from URLdoTemplate order by NumeroDaURL desc";
+
+                        //using (DR = DB.DR(query))
+                        //{
+                        //    DR.Read();
+
+                        //    return DR["NumeroDaURL"].ToString();
+
+                        //}
+
+                        return "";
+                    }
+                    else
+                    {
+                        return "";
+                    }
+
+                }
+
+
+
+
             }
             catch (Exception ex)
             {
@@ -188,7 +264,7 @@ namespace ScieloEzequiel.BLL
             try
             {
                 query = " update TemplatesExecução set DataEhora =" +
-                        " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' " ;
+                        " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' ";
 
 
                 DB.ExecutaQry(query);
@@ -196,6 +272,25 @@ namespace ScieloEzequiel.BLL
             catch (Exception ex)
             {
                 throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: AtualizaTemplatesExecução");
+            }
+        }
+
+        private void AtualizaURLTemplatesExecução(string NumeroDaURL)
+        {
+
+            string query = "";
+
+            try
+            {
+                query = " update URLdoTemplate set DataEhora =" +
+                        " '" + DateTime.Now.ToString("dd/MM/yyy hh:mm:ss") + "' where NumeroDaURL = " + NumeroDaURL + " ";
+
+
+                DB.ExecutaQry(query);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("ERRO:" + ex.Message + " Classe: Automacao Método: AtualizaURLTemplatesExecução");
             }
         }
 
@@ -225,7 +320,7 @@ namespace ScieloEzequiel.BLL
             }
         }
 
-    
+
         private void ReinciaTagsCapturados()
         {
             string query = "";
@@ -235,6 +330,8 @@ namespace ScieloEzequiel.BLL
                 query = " Delete from TagsCapturados";
 
                 DB.ExecutaQry(query);
+
+
             }
             catch (Exception ex)
             {
@@ -242,7 +339,7 @@ namespace ScieloEzequiel.BLL
             }
         }
 
-        private void CapturaTagA(IWebDriver driver)
+        private void CapturaTagA(IWebDriver driver, int NumeroDeCptura, string NumeroDaURL)
         {
             int QtdPesquisas = 1;
             string NomeTag = "";
@@ -250,7 +347,7 @@ namespace ScieloEzequiel.BLL
             string Href = "";
             string query = "";
             IWebElement element1 = null;
-            int NumeroDaURL = 1;
+            //string NumeroDaURL = "";
 
             try
             {
@@ -267,19 +364,21 @@ namespace ScieloEzequiel.BLL
 
                     LocalTag = element1.Location.ToString();
 
-                    if (Href != null)
+                    if (Href != null && Href.Contains("www"))
                     {
                         string[] AUXLocalizacao = LocalTag.Split(',');
 
                         string LocalizacaoTagx = AUXLocalizacao[0].Replace("{X=", "");
                         string LocalizacaoTagy = AUXLocalizacao[1].Replace("Y=", "");
 
-                        query = " insert into TagsCapturados (TipoDeTag, AtrilbutosDoTag, LocalizaçãoTagX, LocalizaçãoTagY, NumeroDaURL)" +
-                                " values ('ref','" + Href.Replace("'", "₱") + "'," + LocalizacaoTagx + "," + LocalizacaoTagy.Replace("}", "") + "," + NumeroDaURL + ")";
+                        query = " insert into TagsCapturados (TipoDeTag,  LocalizaçãoTagX, LocalizaçãoTagY, NumeroDaURL_tela, NumeroDaCaptura, NumeroMaximoDaCaptura)" +
+                                " values ('ref'," + LocalizacaoTagx + "," + LocalizacaoTagy.Replace("}", "") + "," + NumeroDaURL + "," + NumeroDeCptura + ", 5)";
 
                         DB.ExecutaQry(query);
 
-                        NumeroDaURL++;
+
+                        InsereURLdoTemplate(Href.Replace("'", "₱"));      
+
                     }
 
 
@@ -342,6 +441,7 @@ namespace ScieloEzequiel.BLL
         {
             try
             {
+
                 driver.Navigate().GoToUrl(ConsultaUrl()); //Navega na url especificada
                 Thread.Sleep(2500);
             }

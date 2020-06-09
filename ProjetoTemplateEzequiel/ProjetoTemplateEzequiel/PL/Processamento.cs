@@ -44,7 +44,8 @@ namespace ScieloEzequiel
 
                 automacao.PreparaCapturaTag();
 
-                
+                MessageBox.Show("Processamento finalizado");
+
             }
             catch (Exception ex)
             {
